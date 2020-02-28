@@ -1,0 +1,12 @@
+rasterio
+numpy
+geopandas
+fiona
+shapely
+pycrs
+matplotlib
+descartes
+tensorflow
+keras
+segmentation-models
+albumentations==0.0.10
