@@ -134,7 +134,6 @@ class UnetSequence(Sequence):
                 y[i, :, :, :] = y_sample
         return X, y
 
-
 train_augm = Compose([
     HorizontalFlip(p=0.5),
     VerticalFlip(p=0.5),
