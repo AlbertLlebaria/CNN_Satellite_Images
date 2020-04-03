@@ -22,7 +22,7 @@ from albumentations import (Compose, RandomCrop, HorizontalFlip, VerticalFlip, R
 
 from keras.layers import Input, Conv2D
 from keras.models import Model
-import utils
+from modules import utils
 from matplotlib import pyplot as plt
 import time
 

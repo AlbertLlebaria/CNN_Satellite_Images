@@ -1,163 +1,98 @@
-import rasterio
-from rasterio.plot import show
-from rasterio.plot import show_hist
-from rasterio.mask import mask
-from shapely.geometry import box
-import geopandas as gpd
+from modules.geofolki.algorithm import GEFolki
+from modules.geofolki.tools import wrapData
+from itertools import product
+from modules import utils
 from fiona.crs import from_epsg
-import pycrs
+
+import rasterio
+import geopandas as gpd
 import numpy as np
 import glob
-from keras.layers import Input, Conv2D
-from keras.models import Model
-from rasterio.windows import Window
 import os
-import utils 
+import geopandas as gpd
 
 
 DATADIR = 'data/'
 
-RESHAPED = 16000
+
+tile_width = 2000
+tile_height = 2000
+output_file_elevation = "tile_{}_elevation.tif"
+output_file_rgb = "tile_{}_rgb.tif"
+
+output_file_mask = "tile_{}_mask.tif"
+
+output_dir = os.path.join(DATADIR, 'train_val')
 
 
-TRAIN_WINDOW = Window(0, 0, 16000, 16000)
-VAL_WINDOW = Window(0, 16000, 16000, 16000)
+def procces__rgb_and_dem():
+    with rasterio.open(f'{DATADIR}geo/y.tif') as rgb:
+
+        with rasterio.open(f'{DATADIR}geo/y.elevation.tif') as DEM:
+
+            rgb_meta = rgb.profile.copy()
+            dem_meta = DEM.profile.copy()
+
+            for window, transform in utils.get_tiles(rgb, tile_width, tile_height):
+                print(window)
+                mask_roofs = gpd.read_file(
+                    f'data/shapes/CPH_Buildings_Subset.shp', bbox=rasterio.windows.bounds(window, transform))
+
+                rgb_meta['transform'] = transform
+                rgb_meta['width'], rgb_meta['height'] = window.width, window.height
+
+                dem_meta['transform'] = transform
+                dem_meta['width'], dem_meta['height'] = window.width, window.height
+
+                RGB_bands = rgb.read(window=window)
+                DEM_data = DEM.read(window=window)
+
+                with rasterio.open(os.path.join(output_dir, output_file_rgb.format(count)), 'w', **rgb_meta) as dst:
+                    dst.write(RGB_bands)
+                with rasterio.open(os.path.join(output_dir, output_file_elevation.format(count)), 'w', **dem_meta) as dst:
+                    dst.write(DEM_data)
+
+                count += 1
 
 
+def procces__mask():
+    file_list = glob.glob("./data/train_val/*_elevation.tif")
+    file_list.sort()
+    for file in file_list:
+        file_name = file[file.rfind("/")+1::]
+        count = int(file_name[file_name.find("_")+1:file_name.rfind("_")])
 
-for file in glob.glob(f'{DATADIR}geo/*.tif'):
-with rasterio.open(f'{DATADIR}geo/CPH_k.tif') as src:
-    train_data = src.read(window=TRAIN_WINDOW)
-    val_data = src.read(window=VAL_WINDOW)
-    data_profile = src.profile.copy()
-    print(train_data.shape)
-    #write training data    
-    train_profile = data_profile.copy()
-    train_profile.update({'height': TRAIN_WINDOW.height,
-                        'width': TRAIN_WINDOW.width,
-                        'transform': rasterio.windows.transform(TRAIN_WINDOW, data_profile['transform'])
-                        })
+        with rasterio.open(file) as src:
+            # Read the dataset's valid data mask as a ndarray.
+            raster_data = src.read()
+            raster_metadata = src.meta.copy()
 
-    with rasterio.open(os.path.join(DATADIR, 'train_val/cph_k_train.tif'), 'w', **train_profile) as dst:
-        dst.write(train_data)
+            train_roof = gpd.read_file(
+                f'data/shapes/CPH_Buildings_Subset.shp', bbox=src.bounds)
 
-    #write test data
-    val_profile = data_profile.copy()
-    val_profile.update({'height': VAL_WINDOW.height,
-                        'width': VAL_WINDOW.width,
-                        'transform': rasterio.windows.transform(VAL_WINDOW, data_profile['transform'])
-                    }
-                    )
-    with rasterio.open(os.path.join(DATADIR, 'train_val/cph_k_val.tif'), 'w', **val_profile) as dst:
-        dst.write(val_data)
+            if(len(train_roof) > 0):
+                out_image, out_transform = rasterio.mask.mask(
+                    src, train_roof.geometry, crop=False)
+                out_meta = src.meta
 
-with rasterio.open(f'{DATADIR}geo/mask_k.tif') as src:
-    train_mask = src.read(window=TRAIN_WINDOW)
-    val_mask = src.read(window=VAL_WINDOW)
-    train_mask = np.where(train_mask > 0, 255, train_mask) 
-    val_mask = np.where(val_mask > 0, 255, val_mask) 
+                out_meta.update({"driver": "GTiff",
+                                 "height": out_image.shape[1],
+                                 "width": out_image.shape[2],
+                                 "transform": out_transform})
+                out_image = np.where(out_image < 0.0, 0.0, out_image)
 
-    data_profile = src.profile.copy()
+            else:
+                out_image = np.full((1, 2000, 2000), 0.0)
+                out_meta = src.meta
+            with rasterio.open(os.path.join(output_dir, output_file_mask.format(count)), "w", **out_meta) as dest:
+                dest.write(out_image)
 
-    #write training data
-    train_profile = data_profile.copy()
-    train_profile.update({'height': TRAIN_WINDOW.height,
-                        'width': TRAIN_WINDOW.width,
-                        'transform': rasterio.windows.transform(TRAIN_WINDOW, data_profile['transform'])
-                        }
-                        )
+            print(f'Finished {output_file_mask.format(count)}')
 
-    with rasterio.open(os.path.join(DATADIR, 'train_val/mask_k_train.tif'), 'w', **train_profile) as dst:
-        dst.write(train_mask)
 
-    #write test data
-    val_profile = data_profile.copy()
-    val_profile.update({'height': VAL_WINDOW.height,
-                        'width': VAL_WINDOW.width,
-                        'transform': rasterio.windows.transform(VAL_WINDOW, data_profile['transform'])
-                    }
-                    )
-    with rasterio.open(os.path.join(DATADIR, 'train_val/mask_k_val.tif'), 'w', **val_profile) as dst:
-        dst.write(val_mask)
-
-print('created train val')
-in_path = os.path.join(DATADIR, 'train_val')
-out_path = os.path.join(DATADIR, 'train_patches')
-input_filenames = [('cph_k_train.merged.tif', 'mask_k_train.tif')]
-
-output_filename = 'tile_{}-{}.tif'
-output_lab_filename = 'tile_labels_{}-{}.tif'
-
-for filename in input_filenames:
-    (input_filename, label_filename) = filename
-    with rasterio.open(os.path.join(in_path, input_filename)) as inds:
-        tile_width, tile_height = 224, 224
-        meta = inds.meta.copy()
-        nodata = meta['nodata']
-    
-        with rasterio.open(os.path.join(in_path, label_filename)) as labs:
-            meta_labels = labs.meta.copy()
-            labs_data = labs.read()
-            labs_num = len(np.unique(labs_data))
-            name_counter = 0
-            for window, transform in utils.get_tiles(inds, tile_width, tile_height):
-                
-                meta['transform'] = transform
-                meta['width'], meta['height'] = window.width, window.height
-                meta_labels['transform'] = transform
-                meta_labels['width'], meta_labels['height'] = window.width, window.height
-                data = inds.read(window=window)
-                labels = labs.read(window=window)
-                #if labs_num == 5:
-                #    print("found 5 labs in :  " + label_filename)
-                #    labels[labels == 5] = 6
-                if window.width ==  tile_width and window.height == tile_height: #and not np.all(data[5, :, :] == nodata):
-                    outpath = os.path.join(out_path, output_filename.format(input_filename[:2], name_counter))
-                    outpath_lab = os.path.join(out_path, output_lab_filename.format(input_filename[:2], name_counter))
-                    with rasterio.open(outpath, 'w', **meta) as outds:
-                        outds.write(data)
-                    with rasterio.open(outpath_lab, 'w', **meta_labels) as outls:
-                        outls.write(labels)
-                    name_counter += 1
-
-### Follow the same procedure to create patches for validation ###
-
-in_path = os.path.join(DATADIR, 'train_val')
-out_path = os.path.join(DATADIR, 'val_patches')
-input_filenames = [('cph_k_val.merged.tif', 'mask_k_val.tif')]
-
-output_filename = 'tile_{}-{}.tif'
-output_lab_filename = 'tile_labels_{}-{}.tif'
-
-for filename in input_filenames:
-    (input_filename, label_filename) = filename
-    with rasterio.open(os.path.join(in_path, input_filename)) as inds:
-        tile_width, tile_height = 224, 224
-        meta = inds.meta.copy()
-        nodata = meta['nodata']
-    
-        with rasterio.open(os.path.join(in_path, label_filename)) as labs:
-            meta_labels = labs.meta.copy()
-            labs_data = labs.read()
-            labs_num = len(np.unique(labs_data))
-            print(labs_num)
-            name_counter = 0
-            for window, transform in utils.get_tiles(inds, tile_width, tile_height):
-                
-                meta['transform'] = transform
-                meta['width'], meta['height'] = window.width, window.height
-                meta_labels['transform'] = transform
-                meta_labels['width'], meta_labels['height'] = window.width, window.height
-                data = inds.read(window=window)
-                labels = labs.read(window=window)
-                #if labs_num == 5:
-                #    print("found 5 labs in :  " + label_filename)
-                #    labels[labels == 5] = 6
-                if window.width ==  tile_width and window.height == tile_height: #and not np.all(data[5, :, :] == nodata):
-                    outpath = os.path.join(out_path, output_filename.format(input_filename[:2], name_counter))
-                    outpath_lab = os.path.join(out_path, output_lab_filename.format(input_filename[:2], name_counter))
-                    with rasterio.open(outpath, 'w', **meta) as outds:
-                        outds.write(data)
-                    with rasterio.open(outpath_lab, 'w', **meta_labels) as outls:
-                        outls.write(labels)
-                    name_counter += 1
+def corregister_rasters():
+    count = 0
+    rgb_file = output_file_rgb.format(count)
+    mask_file = output_file_mask.format(count)
+    with rasterio.open(rgb_file) as rgb:
+        with rasterio.open(mask_file) as mask:

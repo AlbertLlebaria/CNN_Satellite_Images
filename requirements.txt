@@ -10,3 +10,6 @@ tensorflow
 keras
 segmentation-models
 albumentations==0.0.10
+matplotlib
+opencv-python
+elevation
