@@ -34,6 +34,7 @@ output_file_mask = "tile_{}_mask.tif"
 building_elevation = 'building_{}_elevation.tif'
 building_rgb = 'building_{}_rgb.tif'
 building_mask = 'building_{}_mask.tif'
+building_mask_rgb = 'building_{}_rgbmask.tif'
 
 
 output_dir = os.path.join(DATADIR, 'train_val')
@@ -70,7 +71,7 @@ def procces__rgb_and_dem():
                 print(f'Finished {output_file_rgb.format(count)}')
 
 
-def create_mask():
+def create_elevaiton_mask():
     file_list = glob.glob("./data/train_val/*_elevation.tif")
     file_list.sort()
     for file in file_list:
@@ -83,7 +84,7 @@ def create_mask():
             raster_metadata = src.meta.copy()
 
             train_roof = gpd.read_file(
-                f'filtred_buildings/test.shp', bbox=src.bounds)
+                f'data/shapes/CPH_Buildings_Subset.shp', bbox=src.bounds)
 
             if(len(train_roof) > 0):
                 out_image, out_transform = rasterio.mask.mask(
@@ -103,7 +104,7 @@ def create_mask():
             with rasterio.open(os.path.join(output_dir, output_file_mask.format(count)), "w", **out_meta) as dest:
                 dest.write(out_image)
 
-            print(f'Finished {building_mask.format(count)}')
+            print(f'Finished {building_elevation.format(count)}')
 
 
 def normalize_roofs():
@@ -117,7 +118,7 @@ def normalize_roofs():
         out_meta = src.meta.copy()
 
         train_roof = gpd.read_file(
-            f'filtred_buildings/test.shp', bbox=src.bounds)
+            f'./filtred_buildings/test.shp', bbox=src.bounds)
 
         for index, row in train_roof.iterrows():
             try:
@@ -132,15 +133,6 @@ def normalize_roofs():
                 ys = []
                 zs = []
 
-                # TESTING STUFF
-
-                # rgb_file = file.replace("elevation", "rgb")
-                # mask_file = file.replace("elevation", "mask")
-
-                # window2 = rasterio.features.geometry_window(
-                #     src, [row['geometry']], pad_x=25, pad_y=25,pixel_precision=1)
-                # show(rasterio.open(rgb_file).read([1, 2, 3], window=window2))
-                # show(rasterio.open(mask_file).read([1], window=window2))
 
                 building = []
                 coords = []
@@ -225,9 +217,13 @@ def split_data_set():
         file_name = file[file.rfind("/")+1::]
         rgb_file_aux = file_name.replace("mask", "rgb")
         rgb_file = file.replace("mask", "rgb")
-       
+        
+        elevation_file_aux = file_name.replace("mask", "elevation")
+        elevation_file = file.replace("mask", "elevation")
+
         shutil.move(file, os.path.join(train_dir, file_name))
         shutil.move(rgb_file, os.path.join(train_dir, rgb_file_aux))
+        shutil.move(elevation_file, os.path.join(train_dir, elevation_file_aux))
 
         print("Moved train", file_name)
 
@@ -238,8 +234,12 @@ def split_data_set():
         rgb_file_aux = file_name.replace("mask", "rgb")
         rgb_file = file.replace("mask", "rgb")
         
+        elevation_file_aux = file_name.replace("mask", "elevation")
+        elevation_file = file.replace("mask", "elevation")
+
         shutil.move(file, os.path.join(val_dir, file_name))
         shutil.move(rgb_file, os.path.join(val_dir, rgb_file_aux))
+        shutil.move(elevation_file, os.path.join(val_dir, elevation_file_aux))
 
         print("Moved validation", file_name)
 
@@ -249,15 +249,21 @@ def split_data_set():
         file_name = file[file.rfind("/")+1::]
         rgb_file_aux = file_name.replace("mask", "rgb")
         rgb_file = file.replace("mask", "rgb")
-        
+
+
+        elevation_file_aux = file_name.replace("mask", "elevation")
+        elevation_file = file.replace("mask", "elevation")
+
         shutil.move(file, os.path.join(test_dir, file_name))
         shutil.move(rgb_file, os.path.join(test_dir, rgb_file_aux))
+        shutil.move(elevation_file, os.path.join(test_dir, elevation_file_aux))
 
         print("Moved test", file_name)
 
+
 procces__rgb_and_dem()
-# # print("normalizing roofs")
-# # normalize_roofs()
-# print("Creating mask")
-create_mask()
+# print("normalizing roofs")
+# normalize_roofs()
+print("Creating mask")
+create_elevaiton_mask()
 split_data_set()

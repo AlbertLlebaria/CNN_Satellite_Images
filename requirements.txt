@@ -12,3 +12,8 @@ whitebox
 Cython
 shapely
 scipy
+SymPy
+pyfftw
+phasepack
+opencv-python
+rtree

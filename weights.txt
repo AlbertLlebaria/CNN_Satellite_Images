@@ -1,0 +1,12 @@
+Loaded train_ckpt/weights-improvement-04-0.93.hdf5
+1000/1000 [==============================] - 455s 455ms/step
+accuracy: 92.27%
+
+
+Loaded train_ckpt/weights-improvement-02-0.93.hdf5
+1000/1000 [==============================] - 459s 459ms/step
+accuracy: 92.64%
+
+Loaded train_ckpt/weights-improvement-01-0.91.hdf5
+1000/1000 [==============================] - 484s 484ms/step
+accuracy: 90.63%
