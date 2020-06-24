@@ -4,16 +4,10 @@ geopandas
 fiona
 tensorflow
 keras
-segmentation-models
-albumentations==0.0.10
 matplotlib
 scikit-learn
-whitebox
 Cython
 shapely
 scipy
 SymPy
-pyfftw
-phasepack
-opencv-python
-rtree
+pygdal==2.4.4.6

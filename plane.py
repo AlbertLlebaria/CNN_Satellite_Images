@@ -42,9 +42,7 @@ class PlaneProcessor:
         c = params[2]
         z = a*x + b*y + c
         return z
-
-
-    def error(self,params, points):
+    def error(self, params, points):
         result = 0
         for (x, y, z) in points:
             plane_z = self.plane(x, y, params)
@@ -52,7 +50,7 @@ class PlaneProcessor:
             result += diff**2
         return result
 
-    def cross(self,a, b):
+    def cross(self, a, b):
         return [a[1]*b[2] - a[2]*b[1],
                 a[2]*b[0] - a[0]*b[2],
                 a[0]*b[1] - a[1]*b[0]]
@@ -62,14 +60,13 @@ class PlaneProcessor:
         distance = (plane_xyz*X.T).sum(axis=1) + p[3]
         return distance / np.linalg.norm(plane_xyz)
 
-
     def residuals(self, params, signal, X):
         return self.f_min(X, params)
 
     def plane_equation(self, points, params=[0.1, 0.2, 0.1, 0]):
-        sol = leastsq(self.residuals, params, args=(None, np.array(points).T))[0]
+        sol = leastsq(self.residuals, params, args=(
+            None, np.array(points).T))[0]
         return sol
-
 
     def plot_plane(self, points, params, ax):
         fun = functools.partial(self.error, points=points)
@@ -96,13 +93,9 @@ class PlaneProcessor:
         xx, yy = np.meshgrid([min_x, max_x], [min_y, max_y])
         z = (-normal[0] * xx - normal[1] * yy - d) * 1. / normal[2]
         # ax.plot_surface(xx, yy, z, alpha=0.2, color=[0, 1, 0])
-
-
-    def estimate_height(self,equation, p):
+    def estimate_height(self, equation, p):
         return (-(equation[0] * p[0]) - (equation[1] * p[1]) - equation[3])/equation[2]
-
-
-    def update_plane_equation_from_neighbor_points(self,neighbor, tri, used_points, equation_points, equation, norm):
+    def update_plane_equation_from_neighbor_points(self, neighbor, tri, used_points, equation_points, equation, norm):
         continue_adding = False
         if(neighbor != -1):
             filtered = tri.simplices[neighbor][np.logical_not(np.isin(
@@ -126,9 +119,7 @@ class PlaneProcessor:
             return used_points, equation_points, equation, continue_adding
         else:
             return used_points, equation_points, equation, False
-
-
-    def coplanar_and_noncoplanar_extraction(self,non_ground):
+    def coplanar_and_noncoplanar_extraction(self, non_ground):
 
         tri = Delaunay(non_ground)
         mask = []
@@ -149,7 +140,8 @@ class PlaneProcessor:
                     n_points.append(tri.points[simplice])
 
                 n_points = np.array(n_points)
-                n_points = n_points.reshape(n_points.shape[0]*n_points.shape[1], 3)
+                n_points = n_points.reshape(
+                    n_points.shape[0]*n_points.shape[1], 3)
 
                 n_points = np.unique(n_points, axis=0)
 
@@ -161,9 +153,7 @@ class PlaneProcessor:
                     mask.append(False)
 
         return np.array(mask), tri
-
-
-    def extract_lines(self,non_ground, norm):
+    def extract_lines(self, non_ground, norm):
 
         heights = non_ground[:, 2]
         hight_level = np.max(heights)
@@ -181,26 +171,24 @@ class PlaneProcessor:
             try:
                 if(len(candidates) >= 2):
                     lines.append([candidates, hight_level, *stats.linregress([x[0]
-                                                                            for x in candidates], [x[1] for x in candidates])])
+                                                                              for x in candidates], [x[1] for x in candidates])])
             except Exception as e:
                 print(e)
             hight_level = hight_level-(0.4/norm)
 
         return lines
 
-    def filter_planes_by_std(self,planes):
+    def filter_planes_by_std(self, planes):
         final_planes = []
         mean_std = np.mean(
             list(map(lambda x: np.std(np.array(x["points"])[:, 2]), planes)))
 
         for pl in planes:
-            if(np.std(np.array(pl["points"])[:, 2]) <= mean_std and len(pl["points"])> 10):
+            if(np.std(np.array(pl["points"])[:, 2]) <= mean_std and len(pl["points"]) > 10):
                 final_planes.append(pl)
 
         return final_planes
-
-
-    def get_mid_points(self,cluster_lines):
+    def get_mid_points(self, cluster_lines):
         midpoints = []
 
         for line in cluster_lines:
@@ -217,7 +205,6 @@ class PlaneProcessor:
 
         return midpoints
 
-
     def create_rectangle(self, points):
         # find Xmax and Xmin
         Xmax = np.max(points[:, 0])
@@ -232,7 +219,6 @@ class PlaneProcessor:
 
         return [[Xmin, Xmax], [Ymin, Ymax], [Zmin, Zmax]]
 
-
     def is_inside(self, rectangle, point):
         isInside = False
 
@@ -241,7 +227,6 @@ class PlaneProcessor:
                 if(point[2] >= rectangle[2][0] and point[2] <= rectangle[2][1]):
                     isInside = True
         return isInside
-
 
     def used_point_ratio(self, planes, non_ground, norm):
         filtered = []
@@ -279,7 +264,7 @@ for index, row in train_roof.iterrows():
         for j in range(data.shape[1]):
             if(data[i][j] > 3.0):
                 non_ground.append([i, j, data[i][j]])
-    
+
     # NORMALIZE DATA
     non_ground = np.array(non_ground)
     non_ground_max = int(np.max(non_ground))
@@ -377,10 +362,9 @@ for index, row in train_roof.iterrows():
         plot_plane(res["points"], res["equation"], ax)
     plt.show()
 
-    planes = height_filtering(planes,non_ground_max)
+    planes = height_filtering(planes, non_ground_max)
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     for res in planes:
         plot_plane(res["points"], res["equation"], ax)
     plt.show()
-

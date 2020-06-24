@@ -3,22 +3,12 @@ import geopandas as gpd
 import numpy as np
 import glob
 import os
-from modules import utils
 import shutil
-
-from rasterio.plot import show
 import matplotlib.pyplot as plt
-from sklearn import preprocessing
 from scipy import stats
 from shapely.geometry import Point
 from modules.dip import dip, plot_dip
 import random
-
-
-# from modules.fitlers import rank
-# from modules.geofolki.algorithm import GEFolki
-# from modules.geofolki.algorithm import EFolki
-
 
 DATADIR = 'data/'
 
@@ -38,6 +28,21 @@ building_mask_rgb = 'building_{}_rgbmask.tif'
 
 
 output_dir = os.path.join(DATADIR, 'train_val')
+train_dir = os.path.join(DATADIR, 'train_val/train')
+test_dir = os.path.join(DATADIR, 'train_val/test')
+val_dir = os.path.join(DATADIR, 'train_val/validation')
+
+
+def get_tiles(ds, width=224, height=224):
+    nols, nrows = ds.meta['width'], ds.meta['height']
+    # Control the level of overlap
+    offsets = product(range(0, nols, width), range(0, nrows, height))
+    big_window = windows.Window(col_off=0, row_off=0, width=nols, height=nrows)
+    for col_off, row_off in offsets:
+        window = windows.Window(col_off=col_off, row_off=row_off,
+                                width=width, height=height).intersection(big_window)
+        transform = windows.transform(window, ds.transform)
+        yield window, transform
 
 
 def procces__rgb_and_dem():
@@ -50,7 +55,7 @@ def procces__rgb_and_dem():
             rgb_meta = rgb.profile.copy()
             dem_meta = DEM.profile.copy()
 
-            for window, transform in utils.get_tiles(rgb, tile_width, tile_height):
+            for window, transform in get_tiles(rgb, tile_width, tile_height):
 
                 rgb_meta['transform'] = transform
                 rgb_meta['width'], rgb_meta['height'] = window.width, window.height
@@ -133,7 +138,6 @@ def normalize_roofs():
                 ys = []
                 zs = []
 
-
                 building = []
                 coords = []
 
@@ -160,12 +164,6 @@ def normalize_roofs():
 
                         if(p_value[0] >= 0.005):
                             print("UNIMODAL")
-
-                            # fig = plt.figure()
-                            # ax = fig.add_subplot(111, projection='3d')
-                            # ax.scatter(xs, ys, building, marker='o')
-                            # plt.show()
-
                             mda = stats.median_absolute_deviation(building)
                             diffs = list(map(lambda x: abs(x-mda), building))
                             z_scores = list(
@@ -199,11 +197,6 @@ def normalize_roofs():
         print("finished ", file)
 
 
-train_dir = os.path.join(DATADIR, 'train_val/train')
-test_dir = os.path.join(DATADIR, 'train_val/test')
-val_dir = os.path.join(DATADIR, 'train_val/validation')
-
-
 def split_data_set():
     file_list = glob.glob("./data/train_val/*_mask.tif")
     train = int(len(file_list)*0.65)
@@ -217,13 +210,14 @@ def split_data_set():
         file_name = file[file.rfind("/")+1::]
         rgb_file_aux = file_name.replace("mask", "rgb")
         rgb_file = file.replace("mask", "rgb")
-        
+
         elevation_file_aux = file_name.replace("mask", "elevation")
         elevation_file = file.replace("mask", "elevation")
 
         shutil.move(file, os.path.join(train_dir, file_name))
         shutil.move(rgb_file, os.path.join(train_dir, rgb_file_aux))
-        shutil.move(elevation_file, os.path.join(train_dir, elevation_file_aux))
+        shutil.move(elevation_file, os.path.join(
+            train_dir, elevation_file_aux))
 
         print("Moved train", file_name)
 
@@ -233,7 +227,7 @@ def split_data_set():
         file_name = file[file.rfind("/")+1::]
         rgb_file_aux = file_name.replace("mask", "rgb")
         rgb_file = file.replace("mask", "rgb")
-        
+
         elevation_file_aux = file_name.replace("mask", "elevation")
         elevation_file = file.replace("mask", "elevation")
 
@@ -250,7 +244,6 @@ def split_data_set():
         rgb_file_aux = file_name.replace("mask", "rgb")
         rgb_file = file.replace("mask", "rgb")
 
-
         elevation_file_aux = file_name.replace("mask", "elevation")
         elevation_file = file.replace("mask", "elevation")
 
@@ -261,9 +254,14 @@ def split_data_set():
         print("Moved test", file_name)
 
 
-procces__rgb_and_dem()
-# print("normalizing roofs")
-# normalize_roofs()
-print("Creating mask")
-create_elevaiton_mask()
-split_data_set()
+def main():
+    print("Reading raster and creating tiles")
+    procces__rgb_and_dem()
+    print("Creating mask from tiles")
+    create_elevaiton_mask()
+    print("Splitting dataset")
+    split_data_set()
+
+
+if __name__ == '__main__':
+    main()
