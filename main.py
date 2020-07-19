@@ -7,12 +7,15 @@ import rasterio
 from matplotlib import pyplot
 import os
 import glob
+import pandas as pd
+import geopandas as gpd
+
 
 WEIGHT_FILE = "train_ckpt/weights-improvement-02-0.93.hdf5"
 OUT_FILE_SHP = 'prediction_{}.shp'
 OUT_DIR = './predicted'
 OUT_FILE_RASTER = 'prediction_{}.tif'
-
+    
 
 def main():
     bn_net_model = BN_NET()
@@ -21,11 +24,11 @@ def main():
     elevation_proc = ElevationProcessor()
 
     file_list = glob.glob("./data/train_val/test/*_mask.tif")
-    test_X = np.empty((10, 544, 544, 1))
-    test_Y = np.empty((10, 544, 544, 1))
+    test_X = np.empty((500, 544, 544, 1))
+    test_Y = np.empty((500, 544, 544, 1))
     rasters = []
 
-    for idx, file in enumerate(file_list[0:10]):
+    for idx, file in enumerate(file_list[0:500]):
         elevation = rasterio.open(file.replace("mask", "elevation"))
         input_data = elevation.read([1])
 
@@ -43,11 +46,15 @@ def main():
         rasters.append(file)
 
     out = bn_net_model.predict(test_X, test_Y, False)
+    predicted_shapes = []
+
     for idx, res in enumerate(out):
         bbox_gen.fill_bounding_boxes(res, rasters[idx])
-        elevation_proc.extract_elevation(
+        out_shape = elevation_proc.extract_elevation(
             rasters[idx], res, os.path.join(OUT_DIR, OUT_FILE_RASTER.format(idx)))
-
+        predicted_shapes.append( gpd.read_file(out_shape))
+    gdf = gpd.GeoDataFrame(pd.concat(predicted_shapes))
+    gdf.to_file(os.path.join(OUT_DIR,'merged.shp'))
 
 if __name__ == '__main__':
     main()

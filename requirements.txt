@@ -11,3 +11,4 @@ shapely
 scipy
 SymPy
 pygdal==2.4.4.6
+pandas
