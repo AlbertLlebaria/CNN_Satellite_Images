@@ -1,0 +1,14 @@
+rasterio
+numpy==1.15.4
+geopandas
+fiona
+tensorflow
+keras
+matplotlib
+scikit-learn
+Cython
+shapely
+scipy
+SymPy
+pygdal==2.4.4.6
+pandas

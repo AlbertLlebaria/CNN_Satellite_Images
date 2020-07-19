@@ -1,3 +1,9 @@
+.DS_Store
+data/**
+predicted
+tmp
+
+**.tif
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
