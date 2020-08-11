@@ -2,6 +2,7 @@
 data/**
 predicted
 tmp
+logs/**
 
 **.tif
 # Byte-compiled / optimized / DLL files
