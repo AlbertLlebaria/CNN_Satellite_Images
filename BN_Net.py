@@ -62,7 +62,8 @@ class BN_NET:
                       # Loss function to minimize
                       loss=keras.losses.BinaryCrossentropy(),
                       # List of metrics to monitor
-                      metrics=['accuracy'])
+                      metrics=[keras.metrics.Precision(), keras.metrics.Recall(), 'accuracy'])
+
 
         return model
 
@@ -252,34 +253,14 @@ class BN_NET:
 
 def main():
     bn_net_model = BN_NET()
-    bn_net_model.load_weights(WEIGHT_FILE)
-
-    file_list = glob.glob("./data/train_val/test/*_mask.tif")
-    test_X = np.empty((30, 544, 544, 1))
-    test_Y = np.empty((30, 544, 544, 1))
-    for idx, file in enumerate(file_list[0:30]):
-        rgb = rasterio.open(file.replace("mask", "elevation"))
-        input_data = rgb.read([1])
-
-        mask = rasterio.open(file.replace("mask", "elevation"))
-        mask_data = mask.read()
-
-        out_data = mask_data.astype(np.uint8)
-        out_data = np.where(out_data <= 0, 0, out_data)
-        out_data = np.where(out_data > 0, 1, out_data)
-        input_data = np.reshape(input_data, (544, 544, 1))
-
-        test_X[idx] = input_data/255
-        test_Y[idx] = np.reshape(out_data, (544, 544, 1))
-    bn_net_model.predict(test_X, test_Y)
-
+    # bn_net_model.load_weights(WEIGHT_FILE)
     # bn_net_model.train()
 
-    # weights = glob.glob(os.path.join(CHECK_POINT_PATH,"*.hdf5"))
-    # weights.sort()
-    # model = BN_NET()
-    # for weight_file in weights:
-    #     model.test(weight_file)
+    weights = glob.glob(os.path.join(CHECK_POINT_PATH,"*.hdf5"))
+    weights.sort()
+    model = BN_NET()
+    for weight_file in weights:
+        model.test(weight_file)
 
 
 if __name__ == '__main__':
