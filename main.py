@@ -9,13 +9,13 @@ import os
 import glob
 import pandas as pd
 import geopandas as gpd
-
+import sys
 
 WEIGHT_FILE = "train_ckpt/weights-improvement-02-0.93.hdf5"
 OUT_FILE_SHP = 'prediction_{}.shp'
 OUT_DIR = './predicted'
 OUT_FILE_RASTER = 'prediction_{}.tif'
-    
+
 
 def main():
     bn_net_model = BN_NET()
@@ -52,9 +52,10 @@ def main():
         bbox_gen.fill_bounding_boxes(res, rasters[idx])
         out_shape = elevation_proc.extract_elevation(
             rasters[idx], res, os.path.join(OUT_DIR, OUT_FILE_RASTER.format(idx)))
-        predicted_shapes.append( gpd.read_file(out_shape))
+        predicted_shapes.append(gpd.read_file(out_shape))
     gdf = gpd.GeoDataFrame(pd.concat(predicted_shapes))
-    gdf.to_file(os.path.join(OUT_DIR,'merged.shp'))
+    gdf.to_file(os.path.join(OUT_DIR, 'merged.shp'))
+
 
 if __name__ == '__main__':
-    main()
+    print(sys.argv)

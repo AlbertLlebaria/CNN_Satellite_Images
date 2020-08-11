@@ -12,3 +12,4 @@ scipy
 SymPy
 pygdal==2.4.4.6
 pandas
+setuptools=41.0.0
