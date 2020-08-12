@@ -21,7 +21,7 @@ DATA_DIR = './data'
 TRAIN_DIR = 'train_val/train'
 VAL_DIR = 'train_val/validation'
 CHECK_POINT_PATH = "train_ckpt/relu"
-WEIGHT_FILE = ""
+WEIGHT_FILE = "train_ckpt/relu/weights-improvement-02-0.93.hdf5"
 DRORATE = 0.25
 LEARNING_RATE = 2*math.pow(10, -4)
 
@@ -230,7 +230,7 @@ class BN_NET:
             self.load_weights(weights_file)
             print(f"{weights_file}")
             scores = self.model.evaluate(test_X, test_Y, verbose=1)
-            for i, metric in enumerate(self.model.metrics_names[1]):
+            for i, metric in enumerate(self.model.metrics_names):
                 print("%s: %.2f%%" % (metric, scores[i]*100))
 
     def predict(self, predict_X, predict_Y, plot=True):
@@ -244,7 +244,7 @@ class BN_NET:
             img = np.reshape(predict_X[idx], (544, 544))
             truth = np.reshape(predict_Y[idx], (544, 544))
             if(plot):
-                pyplot.imshow(img, cmap='pink')
+                pyplot.imshow(img*255, cmap='pink')
                 pyplot.title('Raster elevation')
                 pyplot.show()
                 pyplot.imshow(truth, cmap='pink')
@@ -258,15 +258,48 @@ class BN_NET:
         return np.array(result)
 
 
-def main():
-    # bn_net_model = BN_NET()
-    # bn_net_model.load_weights(WEIGHT_FILE)
-    # bn_net_model.train()
+def plot_predictions():
+    bn_net_model = BN_NET()
+    bn_net_model.load_weights(WEIGHT_FILE)
+
+    file_list = glob.glob("./data/train_val/test/*_mask.tif")
+    test_X = np.empty((30, 544, 544, 1))
+    test_Y = np.empty((30, 544, 544, 1))
+    for idx, file in enumerate(file_list[0:30]):
+        rgb = rasterio.open(file.replace("mask", "elevation"))
+        input_data = rgb.read([1])
+
+        mask = rasterio.open(file)
+        mask_data = mask.read()
+
+        out_data = mask_data.astype(np.uint8)
+        out_data = np.where(out_data <= 0, 0, out_data)
+        out_data = np.where(out_data > 0, 1, out_data)
+        input_data = np.reshape(input_data, (544, 544, 1))
+
+        test_X[idx] = input_data/255
+        test_Y[idx] = np.reshape(out_data, (544, 544, 1))
+    bn_net_model.predict(test_X, test_Y)
+
+def train_model():
+    bn_net_model = BN_NET()
+    bn_net_model.load_weights(WEIGHT_FILE)
+    bn_net_model.train()
+
+def evaluate_model_weights():
 
     weights = glob.glob(os.path.join(CHECK_POINT_PATH,"*.hdf5"))
     weights.sort()
     model = BN_NET()
     model.test(weights)
+
+
+def main():
+    train_model()
+    # evaluate_model_weights()
+    # plot_predictions()
+
+
 
 
 if __name__ == '__main__':

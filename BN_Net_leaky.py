@@ -193,7 +193,7 @@ class BN_NET:
             it = datagen.flow(train_X, train_Y, batch_size=1)
             tensorboard_callback = TensorBoard(
                 log_dir="./logs")
-            training_history = self.model.fit(it, callbacks=[checkpoint, tensorboard_callback, metrics],
+            training_history = self.model.fit(it, callbacks=[checkpoint, tensorboard_callback],
                                               epochs=5, validation_data=(val_X, val_Y))
             print("Average test loss: ", np.average(
                 training_history.history['loss']))
@@ -262,15 +262,45 @@ class BN_NET:
 
         return np.array(result)
 
+def plot_predictions():
+    bn_net_model = BN_NET()
+    bn_net_model.load_weights(WEIGHT_FILE)
 
-def main():
-    # bn_net_model = BN_NET()
-    # bn_net_model.train()
+    file_list = glob.glob("./data/train_val/test/*_mask.tif")
+    test_X = np.empty((30, 544, 544, 1))
+    test_Y = np.empty((30, 544, 544, 1))
+    for idx, file in enumerate(file_list[0:30]):
+        rgb = rasterio.open(file.replace("mask", "elevation"))
+        input_data = rgb.read([1])
 
-    weights = glob.glob(os.path.join(CHECK_POINT_PATH, "*.hdf5"))
+        mask = rasterio.open(file)
+        mask_data = mask.read()
+
+        out_data = mask_data.astype(np.uint8)
+        out_data = np.where(out_data <= 0, 0, out_data)
+        out_data = np.where(out_data > 0, 1, out_data)
+        input_data = np.reshape(input_data, (544, 544, 1))
+
+        test_X[idx] = input_data/255
+        test_Y[idx] = np.reshape(out_data, (544, 544, 1))
+    bn_net_model.predict(test_X, test_Y)
+
+def train_model():
+    bn_net_model = BN_NET()
+    bn_net_model.load_weights(WEIGHT_FILE)
+    bn_net_model.train()
+
+def evaluate_model_weights():
+
+    weights = glob.glob(os.path.join(CHECK_POINT_PATH,"*.hdf5"))
     weights.sort()
     model = BN_NET()
     model.test(weights)
+    
+def main():
+    train_model()
+    # evaluate_model_weights()
+    # plot_predictions()
 
 
 if __name__ == '__main__':
