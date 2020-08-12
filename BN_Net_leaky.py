@@ -25,7 +25,7 @@ DATA_DIR = './data'
 TRAIN_DIR = 'train_val/train'
 VAL_DIR = 'train_val/validation'
 CHECK_POINT_PATH = "train_ckpt/leaky"
-WEIGHT_FILE = ""
+WEIGHT_FILE = "train_ckpt/leaky/weights-improvement-01-0.846.hdf5"
 DRORATE = 0.25
 LEARNING_RATE = 2*math.pow(10, -4)
 
@@ -42,6 +42,7 @@ class BN_NET:
         now = datetime.now()
         dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
         self.filepath = "./train_ckpt/leaky/weights-improvement-{epoch:02d}-{val_accuracy:.3f}.hdf5"
+        self.filepath_loss = "./train_ckpt/relu/weights-improvement-{dt_string}-{epoch:02d}-{val_loss:.3f}.hdf5"
 
     def create_model(self):
         inputs = Input(shape=self.input_shape)
