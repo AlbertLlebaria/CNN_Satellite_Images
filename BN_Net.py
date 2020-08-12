@@ -9,7 +9,7 @@ import numpy as np
 import rasterio
 import glob
 import os
-from keras.callbacks import ModelCheckpoint
+from keras.callbacks import ModelCheckpoint, TensorBoard
 from keras.preprocessing.image import ImageDataGenerator
 import math
 from datetime import datetime
@@ -21,7 +21,7 @@ DATA_DIR = './data'
 TRAIN_DIR = 'train_val/train'
 VAL_DIR = 'train_val/validation'
 CHECK_POINT_PATH = "train_ckpt/relu"
-WEIGHT_FILE = "train_ckpt/relu/weights-improvement-02-0.93.hdf5"
+WEIGHT_FILE = ""
 DRORATE = 0.25
 LEARNING_RATE = 2*math.pow(10, -4)
 
@@ -39,7 +39,7 @@ class BN_NET:
         dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
 
         self.filepath = "./train_ckpt/relu/weights-improvement-{dt_string}-{epoch:02d}-{val_accuracy:.3f}.hdf5"
-        
+        self.filepath_loss = "./train_ckpt/relu/weights-improvement-{dt_string}-{epoch:02d}-{val_loss:.3f}.hdf5"
 
     def create_model(self):
         inputs = Input(shape=self.input_shape)
@@ -68,7 +68,6 @@ class BN_NET:
                       loss=keras.losses.BinaryCrossentropy(),
                       # List of metrics to monitor
                       metrics=[keras.metrics.Precision(), keras.metrics.Recall(), 'accuracy'])
-
 
         return model
 
@@ -160,6 +159,8 @@ class BN_NET:
 
         checkpoint = ModelCheckpoint(
             self.filepath, monitor='val_accuracy', verbose=1, save_best_only=True, mode='max')
+        checkpoint_loss = ModelCheckpoint(
+            self.filepath_loss, monitor='val_loss', verbose=1, save_best_only=True, mode='max')
         ranges = [0, 1000, 2000, 3000]
         for r in ranges:
             # 4160
@@ -188,10 +189,12 @@ class BN_NET:
 
                 # create image data augmentation generator
             # data augmentation
-            datagen = ImageDataGenerator(rotation_range=90)
-            # prepare iterator
-            it = datagen.flow(train_X, train_Y, batch_size=20)
-            self.model.fit(it, callbacks=[checkpoint],
+            # datagen = ImageDataGenerator(rotation_range=90)
+            # # prepare iterator
+            # it = datagen.flow(train_X, train_Y, batch_size=20)
+            tensorboard_callback = TensorBoard(
+                log_dir="./logs")
+            self.model.fit(train_X, train_Y, callbacks=[checkpoint, checkpoint_loss, tensorboard_callback], batch_size=1,
                            epochs=5, validation_data=(val_X, val_Y))
         # save model
         self.model.save(os.path.join(MODEL_DIR, "bn_net.h5"))
@@ -281,14 +284,16 @@ def plot_predictions():
         test_Y[idx] = np.reshape(out_data, (544, 544, 1))
     bn_net_model.predict(test_X, test_Y)
 
+
 def train_model():
     bn_net_model = BN_NET()
     bn_net_model.load_weights(WEIGHT_FILE)
     bn_net_model.train()
 
+
 def evaluate_model_weights():
 
-    weights = glob.glob(os.path.join(CHECK_POINT_PATH,"*.hdf5"))
+    weights = glob.glob(os.path.join(CHECK_POINT_PATH, "*.hdf5"))
     weights.sort()
     model = BN_NET()
     model.test(weights)
@@ -298,8 +303,6 @@ def main():
     train_model()
     # evaluate_model_weights()
     # plot_predictions()
-
-
 
 
 if __name__ == '__main__':

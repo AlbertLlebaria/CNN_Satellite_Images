@@ -160,6 +160,8 @@ class BN_NET:
 
         checkpoint = ModelCheckpoint(
             self.filepath, monitor='val_accuracy', verbose=1, save_best_only=True, mode='max')
+        checkpoint_loss = ModelCheckpoint(
+            self.filepath_loss, monitor='val_loss', verbose=1, save_best_only=True, mode='max')
         ranges = [0, 1000, 2000, 3000]
         for r in ranges:
             # 4160
@@ -193,7 +195,7 @@ class BN_NET:
             # it = datagen.flow(train_X, train_Y, batch_size=1)
             tensorboard_callback = TensorBoard(
                 log_dir="./logs")
-            training_history = self.model.fit(train_X, train_Y, callbacks=[checkpoint, tensorboard_callback],batch_size=1,
+            training_history = self.model.fit(train_X, train_Y, callbacks=[checkpoint, checkpoint_loss, tensorboard_callback], batch_size=1,
                                               epochs=5, validation_data=(val_X, val_Y))
             print("Average test loss: ", np.average(
                 training_history.history['loss']))
@@ -262,6 +264,7 @@ class BN_NET:
 
         return np.array(result)
 
+
 def plot_predictions():
     bn_net_model = BN_NET()
     bn_net_model.load_weights(WEIGHT_FILE)
@@ -285,18 +288,21 @@ def plot_predictions():
         test_Y[idx] = np.reshape(out_data, (544, 544, 1))
     bn_net_model.predict(test_X, test_Y)
 
+
 def train_model():
     bn_net_model = BN_NET()
     bn_net_model.load_weights(WEIGHT_FILE)
     bn_net_model.train()
 
+
 def evaluate_model_weights():
 
-    weights = glob.glob(os.path.join(CHECK_POINT_PATH,"*.hdf5"))
+    weights = glob.glob(os.path.join(CHECK_POINT_PATH, "*.hdf5"))
     weights.sort()
     model = BN_NET()
     model.test(weights)
-    
+
+
 def main():
     train_model()
     # evaluate_model_weights()
