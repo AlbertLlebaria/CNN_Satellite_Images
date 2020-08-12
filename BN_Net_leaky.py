@@ -15,6 +15,7 @@ import math
 import matplotlib.pyplot as plt
 from keras.callbacks import Callback
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
+from datetime import datetime
 
 
 np.seterr(divide='ignore', invalid='ignore')
@@ -38,6 +39,8 @@ class BN_NET:
         self.optimizer = keras.optimizers.Adam(
             learning_rate=self.learning_rate, beta_1=0.9, beta_2=0.999, amsgrad=False)
         self.model = self.create_model()
+        now = datetime.now()
+        dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
         self.filepath = "./train_ckpt/leaky/weights-improvement-{epoch:02d}-{val_accuracy:.3f}.hdf5"
 
     def create_model(self):

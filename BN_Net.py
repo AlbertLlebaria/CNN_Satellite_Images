@@ -12,6 +12,7 @@ import os
 from keras.callbacks import ModelCheckpoint
 from keras.preprocessing.image import ImageDataGenerator
 import math
+from datetime import datetime
 
 np.seterr(divide='ignore', invalid='ignore')
 
@@ -19,8 +20,8 @@ MODEL_DIR = './model'
 DATA_DIR = './data'
 TRAIN_DIR = 'train_val/train'
 VAL_DIR = 'train_val/validation'
-CHECK_POINT_PATH = "train_ckpt/iter2"
-WEIGHT_FILE = "train_ckpt/weights-improvement-02-0.93.hdf5"
+CHECK_POINT_PATH = "train_ckpt/relu"
+WEIGHT_FILE = ""
 DRORATE = 0.25
 LEARNING_RATE = 2*math.pow(10, -4)
 
@@ -34,7 +35,11 @@ class BN_NET:
         self.optimizer = keras.optimizers.Adam(
             learning_rate=self.learning_rate, beta_1=0.9, beta_2=0.999, amsgrad=False)
         self.model = self.create_model()
-        self.filepath = "./train_ckpt/weights-improvement-{epoch:02d}-{val_accuracy:.3f}.hdf5"
+        now = datetime.now()
+        dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
+
+        self.filepath = "./train_ckpt/relu/weights-improvement-{dt_string}-{epoch:02d}-{val_accuracy:.3f}.hdf5"
+        
 
     def create_model(self):
         inputs = Input(shape=self.input_shape)
