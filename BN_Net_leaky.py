@@ -9,9 +9,13 @@ import numpy as np
 import rasterio
 import glob
 import os
-from keras.callbacks import ModelCheckpoint
+from keras.callbacks import ModelCheckpoint, TensorBoard
 from keras.preprocessing.image import ImageDataGenerator
 import math
+import matplotlib.pyplot as plt
+from keras.callbacks import Callback
+from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
+
 
 np.seterr(divide='ignore', invalid='ignore')
 
@@ -19,8 +23,8 @@ MODEL_DIR = './model'
 DATA_DIR = './data'
 TRAIN_DIR = 'train_val/train'
 VAL_DIR = 'train_val/validation'
-CHECK_POINT_PATH = "train_ckpt/iter2"
-WEIGHT_FILE = "train_ckpt/weights-improvement-02-0.93.hdf5"
+CHECK_POINT_PATH = "train_ckpt/"
+WEIGHT_FILE = ""
 DRORATE = 0.25
 LEARNING_RATE = 2*math.pow(10, -4)
 
@@ -34,7 +38,7 @@ class BN_NET:
         self.optimizer = keras.optimizers.Adam(
             learning_rate=self.learning_rate, beta_1=0.9, beta_2=0.999, amsgrad=False)
         self.model = self.create_model()
-        self.filepath = "./train_ckpt/weights-improvement-{epoch:02d}-{val_accuracy:.3f}.hdf5"
+        self.filepath = "./train_ckpt/leaky/weights-improvement-{epoch:02d}-{val_accuracy:.3f}.hdf5"
 
     def create_model(self):
         inputs = Input(shape=self.input_shape)
@@ -64,28 +68,26 @@ class BN_NET:
                       # List of metrics to monitor
                       metrics=[keras.metrics.Precision(), keras.metrics.Recall(), 'accuracy'])
 
-
         return model
 
     def downBlock(self, input, filters):
         conv_1 = Conv2D(filters=filters,
-
                         kernel_size=(3, 3),
                         padding="same",
-                        activation='relu',
                         data_format='channels_last')(input)
+        leaky_1 = LeakyReLU(alpha=0.1)(conv_1)
         bn_1 = BatchNormalization(axis=-1, momentum=0.99,
                                   epsilon=0.001, center=True, scale=True,
                                   beta_initializer='zeros', gamma_initializer='ones',
                                   moving_mean_initializer='zeros', moving_variance_initializer='ones',
                                   beta_regularizer=None, gamma_regularizer=None,
-                                  beta_constraint=None, gamma_constraint=None)(conv_1)
+                                  beta_constraint=None, gamma_constraint=None)(leaky_1)
         conv_2 = Conv2D(filters=filters*2,
                         kernel_size=(3, 3),
                         padding="same",
-                        activation='relu',
                         data_format='channels_last')(bn_1)
-        drop = Dropout(DRORATE)(conv_2)  # 3
+        leaky_2 = LeakyReLU(alpha=0.1)(conv_2)
+        drop = Dropout(DRORATE)(leaky_2)  # 3
         bn_2 = BatchNormalization(axis=-1, momentum=0.99,
                                   epsilon=0.001, center=True, scale=True,
                                   beta_initializer='zeros', gamma_initializer='ones',
@@ -99,36 +101,36 @@ class BN_NET:
         conv_1 = Conv2D(filters=filters,
                         kernel_size=(3, 3),
                         padding="same",
-                        activation='relu',
                         data_format='channels_last')(input)
+        leaky_1 = LeakyReLU(alpha=0.1)(conv_1)
         return BatchNormalization(axis=-1, momentum=0.99,
                                   epsilon=0.001, center=True, scale=True,
                                   beta_initializer='zeros', gamma_initializer='ones',
                                   moving_mean_initializer='zeros', moving_variance_initializer='ones',
                                   beta_regularizer=None, gamma_regularizer=None,
-                                  beta_constraint=None, gamma_constraint=None)(conv_1)
+                                  beta_constraint=None, gamma_constraint=None)(leaky_1)
 
     def up_block(self, input, connection, filters):
         conv_1 = Conv2D(filters=filters,
                         kernel_size=(1, 1),
                         padding="same",
-                        activation='relu',
                         data_format='channels_last')(input)
-        up = UpSampling2D(size=2, interpolation="bilinear")(conv_1)
+        leaky_1 = LeakyReLU(alpha=0.1)(conv_1)
+        up = UpSampling2D(size=2, interpolation="bilinear")(leaky_1)
         con = Concatenate()([up, connection])
 
         conv_2 = Conv2D(filters=filters,
                         kernel_size=(3, 3),
-                        activation='relu',
                         padding="same")(con)
-        drop = Dropout(DRORATE)(conv_2)  # 3
+        leaky_2 = LeakyReLU(alpha=0.1)(conv_2)
+        drop = Dropout(DRORATE)(leaky_2)  # 3
         bn_2 = BatchNormalization(axis=-1)(drop)
         conv_2 = Conv2D(filters=filters,
                         kernel_size=(3, 3),
                         padding="same",
-                        activation='relu',
                         data_format='channels_last')(bn_2)
-        return BatchNormalization(axis=-1)(conv_2)
+        leaky_3 = LeakyReLU(alpha=0.1)(conv_2)
+        return BatchNormalization(axis=-1)(leaky_3)
 
     def train(self):
 
@@ -185,9 +187,14 @@ class BN_NET:
             # data augmentation
             datagen = ImageDataGenerator(rotation_range=90)
             # prepare iterator
-            it = datagen.flow(train_X, train_Y, batch_size=20)
-            self.model.fit(it, callbacks=[checkpoint],
-                           epochs=5, validation_data=(val_X, val_Y))
+            it = datagen.flow(train_X, train_Y, batch_size=1)
+            tensorboard_callback = TensorBoard(
+                log_dir="./logs")
+            training_history = self.model.fit(it, callbacks=[checkpoint, tensorboard_callback, metrics],
+                                              epochs=5, validation_data=(val_X, val_Y))
+            print("Average test loss: ", np.average(
+                training_history.history['loss']))
+
         # save model
         self.model.save(os.path.join(MODEL_DIR, "bn_net.h5"))
 
@@ -255,10 +262,9 @@ class BN_NET:
 
 def main():
     # bn_net_model = BN_NET()
-    # bn_net_model.load_weights(WEIGHT_FILE)
     # bn_net_model.train()
 
-    weights = glob.glob(os.path.join(CHECK_POINT_PATH,"*.hdf5"))
+    weights = glob.glob(os.path.join(CHECK_POINT_PATH, "*.hdf5"))
     weights.sort()
     model = BN_NET()
     model.test(weights)
