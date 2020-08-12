@@ -155,7 +155,7 @@ class BN_NET:
 
             input_data = np.reshape(input_data, (544, 544, 1))
 
-            val_X[idx] = input_data/255
+            val_X[idx] = input_data
             val_Y[idx] = np.reshape(out_data, (544, 544, 1))
 
         checkpoint = ModelCheckpoint(
@@ -183,17 +183,17 @@ class BN_NET:
                 out_data = np.where(out_data > 0, 1, out_data)
 
                 input_data = np.reshape(input_data, (544, 544, 1))
-                train_X[idx] = input_data/255
+                train_X[idx] = input_data
                 train_Y[idx] = np.reshape(out_data, (544, 544, 1))
 
                 # create image data augmentation generator
             # data augmentation
-            datagen = ImageDataGenerator(rotation_range=90)
-            # prepare iterator
-            it = datagen.flow(train_X, train_Y, batch_size=1)
+            # datagen = ImageDataGenerator(rotation_range=90)
+            # # prepare iterator
+            # it = datagen.flow(train_X, train_Y, batch_size=1)
             tensorboard_callback = TensorBoard(
                 log_dir="./logs")
-            training_history = self.model.fit(it, callbacks=[checkpoint, tensorboard_callback],
+            training_history = self.model.fit(train_X, train_Y, callbacks=[checkpoint, tensorboard_callback],batch_size=1,
                                               epochs=5, validation_data=(val_X, val_Y))
             print("Average test loss: ", np.average(
                 training_history.history['loss']))
@@ -229,7 +229,7 @@ class BN_NET:
             out_data = np.where(out_data > 0, 1, out_data)
             input_data = np.reshape(input_data, (544, 544, 1))
 
-            test_X[idx] = input_data/255
+            test_X[idx] = input_data
             test_Y[idx] = np.reshape(out_data, (544, 544, 1))
         for weights_file in weights:
             self.load_weights(weights_file)
@@ -281,7 +281,7 @@ def plot_predictions():
         out_data = np.where(out_data > 0, 1, out_data)
         input_data = np.reshape(input_data, (544, 544, 1))
 
-        test_X[idx] = input_data/255
+        test_X[idx] = input_data
         test_Y[idx] = np.reshape(out_data, (544, 544, 1))
     bn_net_model.predict(test_X, test_Y)
 
