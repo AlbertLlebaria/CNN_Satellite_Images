@@ -17,37 +17,14 @@ from keras.callbacks import Callback
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
 
 
-class Metrics(Callback):
-    def on_train_begin(self, logs={}):
-        self.val_f1s = []
-        self.val_recalls = []
-        self.val_precisions = []
-
-    def on_epoch_end(self, epoch, logs={}):
-        val_predict = (np.asarray(self.model.predict(
-            self.model.validation_data[0]))).round()
-        val_targ = self.model.validation_data[1]
-        _val_f1 = f1_score(val_targ, val_predict)
-        _val_recall = recall_score(val_targ, val_predict)
-        _val_precision = precision_score(val_targ, val_predict)
-        self.val_f1s.append(_val_f1)
-        self.val_recalls.append(_val_recall)
-        self.val_precisions.append(_val_precision)
-        print(
-            f" — val_f1: {_val_f1} — val_precision: {_val_precision}— val_recall {_val_recall}")
-        return
-
-
-metrics = Metrics()
-
 np.seterr(divide='ignore', invalid='ignore')
 
 MODEL_DIR = './model'
 DATA_DIR = './data'
 TRAIN_DIR = 'train_val/train'
 VAL_DIR = 'train_val/validation'
-CHECK_POINT_PATH = "train_ckpt/leaky"
-WEIGHT_FILE = "train_ckpt/leaky/weights-improvement-02-0.93.hdf5"
+CHECK_POINT_PATH = "train_ckpt/"
+WEIGHT_FILE = ""
 DRORATE = 0.25
 LEARNING_RATE = 2*math.pow(10, -4)
 
@@ -232,8 +209,7 @@ class BN_NET:
             print(f"Error: {e}")
             pass
 
-    def test(self, weights_file):
-        self.load_weights(weights_file)
+    def test(self, weights):
         file_list = glob.glob("./data/train_val/test/*_mask.tif")
         test_X = np.empty((1000, 544, 544, 1))
         test_Y = np.empty((1000, 544, 544, 1))
@@ -252,10 +228,12 @@ class BN_NET:
 
             test_X[idx] = input_data/255
             test_Y[idx] = np.reshape(out_data, (544, 544, 1))
-
-        scores = self.model.evaluate(test_X, test_Y, verbose=1)
-        for i, metric in enumerate(self.model.metrics_names[1]):
-            print("%s: %.2f%%" % (metric, scores[i]*100))
+        for weights_file in weights:
+            self.load_weights(weights_file)
+            print(f"{weights_file}")
+            scores = self.model.evaluate(test_X, test_Y, verbose=1)
+            for i, metric in enumerate(self.model.metrics_names[1]):
+                print("%s: %.2f%%" % (metric, scores[i]*100))
 
     def predict(self, predict_X, predict_Y, plot=True):
         result = []
@@ -283,17 +261,13 @@ class BN_NET:
 
 
 def main():
-    bn_net_model = BN_NET()
-    bn_net_model.train()
-    # bn_net_model.load_weights(
-    #     '/Volumes/TOSHIBA EXT/learning/CNN_Satellite_Images/train_ckpt/leaky/weights-improvement-03-0.851.hdf5')
+    # bn_net_model = BN_NET()
     # bn_net_model.train()
 
     weights = glob.glob(os.path.join(CHECK_POINT_PATH, "*.hdf5"))
     weights.sort()
     model = BN_NET()
-    for weight_file in weights:
-        model.test(weight_file)
+    model.test(weights)
 
 
 if __name__ == '__main__':
