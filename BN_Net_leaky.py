@@ -25,7 +25,7 @@ DATA_DIR = './data'
 TRAIN_DIR = 'train_val/train'
 VAL_DIR = 'train_val/validation'
 CHECK_POINT_PATH = "train_ckpt/leaky"
-WEIGHT_FILE = "train_ckpt/leaky/weights-improvement-01-0.846.hdf5"
+WEIGHT_FILE = "train_ckpt/leaky/weights-improvement-01-0.874.hdf5"
 DRORATE = 0.25
 LEARNING_RATE = 2*math.pow(10, -4)
 
@@ -42,7 +42,7 @@ class BN_NET:
         now = datetime.now()
         dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
         self.filepath = "./train_ckpt/leaky/weights-improvement-{epoch:02d}-{val_accuracy:.3f}.hdf5"
-        self.filepath_loss = "./train_ckpt/relu/weights-improvement-{dt_string}-{epoch:02d}-{val_loss:.3f}.hdf5"
+        self.filepath_loss = "./train_ckpt/relu/weights-improvement-{epoch:02d}-{val_loss:.5f}.hdf5"
 
     def create_model(self):
         inputs = Input(shape=self.input_shape)
@@ -162,7 +162,7 @@ class BN_NET:
         checkpoint = ModelCheckpoint(
             self.filepath, monitor='val_accuracy', verbose=1, save_best_only=True, mode='max')
         checkpoint_loss = ModelCheckpoint(
-            self.filepath_loss, monitor='val_loss', verbose=1, save_best_only=True, mode='max')
+            self.filepath_loss, monitor='val_loss', verbose=1, save_best_only=True, mode='min')
         ranges = [0, 1000, 2000, 3000]
         for r in ranges:
             # 4160
@@ -305,9 +305,9 @@ def evaluate_model_weights():
 
 
 def main():
-    train_model()
+    # train_model()
     # evaluate_model_weights()
-    # plot_predictions()
+    plot_predictions()
 
 
 if __name__ == '__main__':

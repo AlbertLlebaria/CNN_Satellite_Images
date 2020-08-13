@@ -160,7 +160,7 @@ class BN_NET:
         checkpoint = ModelCheckpoint(
             self.filepath, monitor='val_accuracy', verbose=1, save_best_only=True, mode='max')
         checkpoint_loss = ModelCheckpoint(
-            self.filepath_loss, monitor='val_loss', verbose=1, save_best_only=True, mode='max')
+            self.filepath_loss, monitor='val_loss', verbose=1, save_best_only=True, mode='min')
         ranges = [0, 1000, 2000, 3000]
         for r in ranges:
             # 4160
