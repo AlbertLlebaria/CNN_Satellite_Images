@@ -24,10 +24,10 @@ class ElevationProcessor():
                            os.path.join(TMP_DIR, 'tmp.tif'), 'slope')
 
         src = rasterio.open(os.path.join(TMP_DIR, 'slope.tif'))
-        data = src.read()
+        data = src.read()[0]
 
         classified_raster = np.copy(data)
-        ground = np.where((data < 0))
+        ground = np.where((data <= 0))
         correct_slope = np.where((data > 0) & (data <= 30))
         wrong_slope = np.where(data > 30)
 
@@ -39,7 +39,7 @@ class ElevationProcessor():
         meta = src.meta
 
         with rasterio.open(out_file, "w", **meta) as dest:
-            dest.write(classified_raster)
+            dest.write(np.array([classified_raster]))
 
         src = rasterio.open(out_file)
         results = ({'properties': {'raster_val': v}, 'geometry': s} for i, (s, v) in enumerate(rasterio.features.shapes(

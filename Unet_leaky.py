@@ -24,8 +24,8 @@ MODEL_DIR = './model'
 DATA_DIR = './data'
 TRAIN_DIR = 'train_val/train'
 VAL_DIR = 'train_val/validation'
-CHECK_POINT_PATH = "train_ckpt/leaky"
-WEIGHT_FILE = "train_ckpt/leaky/weights-improvement-03-0.919.hdf5"
+CHECK_POINT_PATH = "train_ckpt/bn"
+WEIGHT_FILE = "train_ckpt/"
 DRORATE = 0.25
 LEARNING_RATE = 2*math.pow(10, -4)
 
@@ -41,8 +41,8 @@ class BN_NET:
         self.model = self.create_model()
         now = datetime.now()
         dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
-        self.filepath = "./train_ckpt/leaky/v2/weights-improvement-{epoch:02d}-{val_accuracy:.3f}.hdf5"
-        self.filepath_loss = "./train_ckpt/leaky/v2/weights-improvement-lss-{epoch:02d}-{val_loss:.3f}.hdf5"
+        self.filepath = "./train_ckpt/bn/weights-improvement-{epoch:02d}-{val_accuracy:.3f}.hdf5"
+        self.filepath_loss = "./train_ckpt/bn/weights-improvement-lss-{epoch:02d}-{val_loss:.3f}.hdf5"
 
     def create_model(self):
         inputs = Input(shape=self.input_shape)
@@ -80,25 +80,13 @@ class BN_NET:
                         padding="same",
                         data_format='channels_last')(input)
         leaky_1 = LeakyReLU(alpha=0.1)(conv_1)
-        bn_1 = BatchNormalization(axis=-1, momentum=0.99,
-                                  epsilon=0.001, center=True, scale=True,
-                                  beta_initializer='zeros', gamma_initializer='ones',
-                                  moving_mean_initializer='zeros', moving_variance_initializer='ones',
-                                  beta_regularizer=None, gamma_regularizer=None,
-                                  beta_constraint=None, gamma_constraint=None)(leaky_1)
         conv_2 = Conv2D(filters=filters*2,
                         kernel_size=(3, 3),
                         padding="same",
-                        data_format='channels_last')(bn_1)
+                        data_format='channels_last')(leaky_1)
         leaky_2 = LeakyReLU(alpha=0.1)(conv_2)
         drop = Dropout(DRORATE)(leaky_2)  # 3
-        bn_2 = BatchNormalization(axis=-1, momentum=0.99,
-                                  epsilon=0.001, center=True, scale=True,
-                                  beta_initializer='zeros', gamma_initializer='ones',
-                                  moving_mean_initializer='zeros', moving_variance_initializer='ones',
-                                  beta_regularizer=None, gamma_regularizer=None,
-                                  beta_constraint=None, gamma_constraint=None)(drop)
-        return MaxPooling2D(pool_size=2)(bn_2), bn_2
+        return MaxPooling2D(pool_size=2)(drop), drop
 
     def central_block(self, input, filters):
         # The central conv-block is a 3 × 3 convolutional layer with 384 kernels followed by a LeakyReLU activation function and BN layer.
@@ -107,12 +95,7 @@ class BN_NET:
                         padding="same",
                         data_format='channels_last')(input)
         leaky_1 = LeakyReLU(alpha=0.1)(conv_1)
-        return BatchNormalization(axis=-1, momentum=0.99,
-                                  epsilon=0.001, center=True, scale=True,
-                                  beta_initializer='zeros', gamma_initializer='ones',
-                                  moving_mean_initializer='zeros', moving_variance_initializer='ones',
-                                  beta_regularizer=None, gamma_regularizer=None,
-                                  beta_constraint=None, gamma_constraint=None)(leaky_1)
+        return leaky_1
 
     def up_block(self, input, connection, filters):
         conv_1 = Conv2D(filters=filters,
@@ -128,11 +111,10 @@ class BN_NET:
                         padding="same")(con)
         leaky_2 = LeakyReLU(alpha=0.1)(conv_2)
         drop = Dropout(DRORATE)(leaky_2)  # 3
-        bn_2 = BatchNormalization(axis=-1)(drop)
         conv_2 = Conv2D(filters=filters,
                         kernel_size=(3, 3),
                         padding="same",
-                        data_format='channels_last')(bn_2)
+                        data_format='channels_last')(drop)
         leaky_3 = LeakyReLU(alpha=0.1)(conv_2)
         return BatchNormalization(axis=-1)(leaky_3)
 
@@ -270,7 +252,7 @@ def plot_predictions():
     bn_net_model = BN_NET()
     bn_net_model.load_weights(WEIGHT_FILE)
 
-    file_list = glob.glob("./data/*_mask.tif")
+    file_list = glob.glob("./data/train_val/test/*_mask.tif")
     test_X = np.empty((50, 544, 544, 1))
     test_Y = np.empty((50, 544, 544, 1))
 
@@ -307,9 +289,9 @@ def evaluate_model_weights():
 
 
 def main():
-    # train_model()
-    # evaluate_model_weights()
-    plot_predictions()
+    train_model()
+    evaluate_model_weights()
+    # plot_predictions()
 
 
 if __name__ == '__main__':
