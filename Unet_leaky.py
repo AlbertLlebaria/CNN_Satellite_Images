@@ -12,7 +12,8 @@ import os
 from keras.callbacks import ModelCheckpoint, TensorBoard
 from keras.preprocessing.image import ImageDataGenerator
 import math
- from keras.callbacks import Callback
+import matplotlib.pyplot as plt
+from keras.callbacks import Callback
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
 from datetime import datetime
 
@@ -23,8 +24,8 @@ MODEL_DIR = './model'
 DATA_DIR = './data'
 TRAIN_DIR = 'train_val/train'
 VAL_DIR = 'train_val/validation'
-CHECK_POINT_PATH = "train_ckpt/leaky"
-WEIGHT_FILE = "train_ckpt/leaky/weights-improvement-03-0.919.hdf5"
+CHECK_POINT_PATH = "train_ckpt/bn"
+WEIGHT_FILE = "train_ckpt/"
 DRORATE = 0.25
 LEARNING_RATE = 2*math.pow(10, -4)
 
@@ -40,8 +41,8 @@ class BN_NET:
         self.model = self.create_model()
         now = datetime.now()
         dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
-        self.filepath = "./train_ckpt/leaky/v2/weights-improvement-{epoch:02d}-{val_accuracy:.3f}.hdf5"
-        self.filepath_loss = "./train_ckpt/leaky/v2/weights-improvement-lss-{epoch:02d}-{val_loss:.3f}.hdf5"
+        self.filepath = "./train_ckpt/bn/weights-improvement-{epoch:02d}-{val_accuracy:.3f}.hdf5"
+        self.filepath_loss = "./train_ckpt/bn/weights-improvement-lss-{epoch:02d}-{val_loss:.3f}.hdf5"
 
     def create_model(self):
         inputs = Input(shape=self.input_shape)
@@ -79,25 +80,13 @@ class BN_NET:
                         padding="same",
                         data_format='channels_last')(input)
         leaky_1 = LeakyReLU(alpha=0.1)(conv_1)
-        bn_1 = BatchNormalization(axis=-1, momentum=0.99,
-                                  epsilon=0.001, center=True, scale=True,
-                                  beta_initializer='zeros', gamma_initializer='ones',
-                                  moving_mean_initializer='zeros', moving_variance_initializer='ones',
-                                  beta_regularizer=None, gamma_regularizer=None,
-                                  beta_constraint=None, gamma_constraint=None)(leaky_1)
         conv_2 = Conv2D(filters=filters*2,
                         kernel_size=(3, 3),
                         padding="same",
-                        data_format='channels_last')(bn_1)
+                        data_format='channels_last')(leaky_1)
         leaky_2 = LeakyReLU(alpha=0.1)(conv_2)
         drop = Dropout(DRORATE)(leaky_2)  # 3
-        bn_2 = BatchNormalization(axis=-1, momentum=0.99,
-                                  epsilon=0.001, center=True, scale=True,
-                                  beta_initializer='zeros', gamma_initializer='ones',
-                                  moving_mean_initializer='zeros', moving_variance_initializer='ones',
-                                  beta_regularizer=None, gamma_regularizer=None,
-                                  beta_constraint=None, gamma_constraint=None)(drop)
-        return MaxPooling2D(pool_size=2)(bn_2), drop
+        return MaxPooling2D(pool_size=2)(drop), drop
 
     def central_block(self, input, filters):
         # The central conv-block is a 3 × 3 convolutional layer with 384 kernels followed by a LeakyReLU activation function and BN layer.
@@ -106,12 +95,7 @@ class BN_NET:
                         padding="same",
                         data_format='channels_last')(input)
         leaky_1 = LeakyReLU(alpha=0.1)(conv_1)
-        return BatchNormalization(axis=-1, momentum=0.99,
-                                  epsilon=0.001, center=True, scale=True,
-                                  beta_initializer='zeros', gamma_initializer='ones',
-                                  moving_mean_initializer='zeros', moving_variance_initializer='ones',
-                                  beta_regularizer=None, gamma_regularizer=None,
-                                  beta_constraint=None, gamma_constraint=None)(leaky_1)
+        return leaky_1
 
     def up_block(self, input, connection, filters):
         conv_1 = Conv2D(filters=filters,
@@ -127,11 +111,10 @@ class BN_NET:
                         padding="same")(con)
         leaky_2 = LeakyReLU(alpha=0.1)(conv_2)
         drop = Dropout(DRORATE)(leaky_2)  # 3
-        bn_2 = BatchNormalization(axis=-1)(drop)
         conv_2 = Conv2D(filters=filters,
                         kernel_size=(3, 3),
                         padding="same",
-                        data_format='channels_last')(bn_2)
+                        data_format='channels_last')(drop)
         leaky_3 = LeakyReLU(alpha=0.1)(conv_2)
         return BatchNormalization(axis=-1)(leaky_3)
 
@@ -252,53 +235,28 @@ class BN_NET:
             truth = np.reshape(predict_Y[idx], (544, 544))
             if(plot):
                 pyplot.imshow(img, cmap='pink')
-                pyplot.title('Raster elevation')
+                pyplot.title(f'Raster elevation \n {file_list[idx]}')
                 pyplot.show()
                 pyplot.imshow(truth, cmap='pink')
                 pyplot.title('Truth elevation')
                 pyplot.show()
                 pyplot.imshow(classes, cmap='pink')
-                pyplot.title('Predited elevation')
+                pyplot.title(f'Predited elevation, {file_list[idx]}')
                 pyplot.show()
-
             result.append(classes)
 
         return np.array(result)
 
-    def return_fp(self, predicted, truth):
-        copy = np.copy(predicted)
-        for x in range(544):
-            for y in range(544):
-                if(predicted[x][y] != truth[x][y]):
-                    if(predicted[x][y]==1):
-                        copy[x][y] = True
-                    else:
-                        copy[x][y] = False
-                else:
-                    copy[x][y] = False
-        return copy
 
-    def return_fn(self, predicted, truth):
-            copy = np.copy(predicted)
-            for x in range(544):
-                for y in range(544):
-                    if(predicted[x][y] != truth[x][y]):
-                        if(predicted[x][y]==0):
-                            copy[x][y] = True
-                        else:
-                            copy[x][y] = False
-                    else:
-                        copy[x][y] = False
-            return copy
 def plot_predictions():
     bn_net_model = BN_NET()
     bn_net_model.load_weights(WEIGHT_FILE)
 
-    file_list = glob.glob("./data/*_mask.tif")
-    test_X = np.empty((1, 544, 544, 1))
-    test_Y = np.empty((1, 544, 544, 1))
+    file_list = glob.glob("./data/train_val/test/*_mask.tif")
+    test_X = np.empty((50, 544, 544, 1))
+    test_Y = np.empty((50, 544, 544, 1))
 
-    for idx, file in enumerate(file_list[0:1]):
+    for idx, file in enumerate(file_list[0:50]):
         rgb = rasterio.open(file.replace("mask", "elevation"))
         input_data = rgb.read([1])
 
@@ -331,9 +289,9 @@ def evaluate_model_weights():
 
 
 def main():
-    # train_model()
-    # evaluate_model_weights()
-    plot_predictions()
+    train_model()
+    evaluate_model_weights()
+    # plot_predictions()
 
 
 if __name__ == '__main__':
