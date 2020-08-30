@@ -44,7 +44,7 @@ class ElevationProcessor():
         
         classified_raster =  np.array([classified_raster])
         with rasterio.open(out_file, "w", **meta) as dest:
-            dest.write(classified_raster)
+            dest.write(np.array([classified_raster]))
 
         src = rasterio.open(out_file)
         results = ({'properties': {'raster_val': v}, 'geometry': s} for i, (s, v) in enumerate(rasterio.features.shapes(

@@ -97,7 +97,7 @@ class BN_NET:
                                   moving_mean_initializer='zeros', moving_variance_initializer='ones',
                                   beta_regularizer=None, gamma_regularizer=None,
                                   beta_constraint=None, gamma_constraint=None)(drop)
-        return MaxPooling2D(pool_size=2)(bn_2), drop
+        return MaxPooling2D(pool_size=2)(bn_2), bn_2
 
     def central_block(self, input, filters):
         # The central conv-block is a 3 × 3 convolutional layer with 384 kernels followed by a LeakyReLU activation function and BN layer.
@@ -252,13 +252,13 @@ class BN_NET:
             truth = np.reshape(predict_Y[idx], (544, 544))
             if(plot):
                 pyplot.imshow(img, cmap='pink')
-                pyplot.title('Raster elevation')
+                pyplot.title(f'Raster elevation \n {file_list[idx]}')
                 pyplot.show()
                 pyplot.imshow(truth, cmap='pink')
                 pyplot.title('Truth elevation')
                 pyplot.show()
                 pyplot.imshow(classes, cmap='pink')
-                pyplot.title('Predited elevation')
+                pyplot.title(f'Predited elevation, {file_list[idx]}')
                 pyplot.show()
 
             result.append(classes)
@@ -295,10 +295,10 @@ def plot_predictions():
     bn_net_model.load_weights(WEIGHT_FILE)
 
     file_list = glob.glob("./data/*_mask.tif")
-    test_X = np.empty((1, 544, 544, 1))
-    test_Y = np.empty((1, 544, 544, 1))
+    test_X = np.empty((50, 544, 544, 1))
+    test_Y = np.empty((50, 544, 544, 1))
 
-    for idx, file in enumerate(file_list[0:1]):
+    for idx, file in enumerate(file_list[0:50]):
         rgb = rasterio.open(file.replace("mask", "elevation"))
         input_data = rgb.read([1])
 
