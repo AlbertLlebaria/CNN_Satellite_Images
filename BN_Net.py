@@ -21,7 +21,7 @@ DATA_DIR = './data'
 TRAIN_DIR = 'train_val/train'
 VAL_DIR = 'train_val/validation'
 CHECK_POINT_PATH = "train_ckpt/relu"
-WEIGHT_FILE = ""
+WEIGHT_FILE = "./train_ckpt/relu/weights-improvement-01-0.937.hdf5"
 DRORATE = 0.25
 LEARNING_RATE = 2*math.pow(10, -4)
 
@@ -38,8 +38,8 @@ class BN_NET:
         now = datetime.now()
         dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
 
-        self.filepath = "./train_ckpt/relu/weights-improvement-{dt_string}-{epoch:02d}-{val_accuracy:.3f}.hdf5"
-        self.filepath_loss = "./train_ckpt/relu/weights-improvement-{dt_string}-{epoch:02d}-{val_loss:.3f}.hdf5"
+        self.filepath = "./train_ckpt/relu/weights-improvement-{epoch:02d}-{val_accuracy:.3f}.hdf5"
+        self.filepath_loss = "./train_ckpt/relu/weights-improvement-loss-{epoch:02d}-{val_loss:.3f}.hdf5"
 
     def create_model(self):
         inputs = Input(shape=self.input_shape)
@@ -241,7 +241,7 @@ class BN_NET:
 
         out = self.model.predict(predict_X)
         for idx, prediction in enumerate(out):
-            classes = np.where(prediction < 0.51, 0, 255)
+            classes = np.where(prediction <= 0.50, 0, 255)
 
             classes = np.reshape(classes, (544, 544))
             img = np.reshape(predict_X[idx], (544, 544))
@@ -300,9 +300,9 @@ def evaluate_model_weights():
 
 
 def main():
-    train_model()
+    # train_model()
     # evaluate_model_weights()
-    # plot_predictions()
+    plot_predictions()
 
 
 if __name__ == '__main__':
