@@ -25,7 +25,7 @@ DATA_DIR = './data'
 TRAIN_DIR = 'train_val/train'
 VAL_DIR = 'train_val/validation'
 CHECK_POINT_PATH = "train_ckpt/leaky"
-WEIGHT_FILE = ""
+WEIGHT_FILE = "train_ckpt/leaky/weights-improvement-03-0.919.hdf5"
 DRORATE = 0.25
 LEARNING_RATE = 2*math.pow(10, -4)
 
@@ -41,7 +41,8 @@ class BN_NET:
         self.model = self.create_model()
         now = datetime.now()
         dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
-        self.filepath = "./train_ckpt/leaky/weights-improvement-{epoch:02d}-{val_accuracy:.3f}.hdf5"
+        self.filepath = "./train_ckpt/leaky/v2/weights-improvement-{epoch:02d}-{val_accuracy:.3f}.hdf5"
+        self.filepath_loss = "./train_ckpt/leaky/v2/weights-improvement-lss-{epoch:02d}-{val_loss:.3f}.hdf5"
 
     def create_model(self):
         inputs = Input(shape=self.input_shape)
@@ -97,7 +98,7 @@ class BN_NET:
                                   moving_mean_initializer='zeros', moving_variance_initializer='ones',
                                   beta_regularizer=None, gamma_regularizer=None,
                                   beta_constraint=None, gamma_constraint=None)(drop)
-        return MaxPooling2D(pool_size=2)(bn_2), drop
+        return MaxPooling2D(pool_size=2)(bn_2), bn_2
 
     def central_block(self, input, filters):
         # The central conv-block is a 3 × 3 convolutional layer with 384 kernels followed by a LeakyReLU activation function and BN layer.
@@ -161,8 +162,8 @@ class BN_NET:
         checkpoint = ModelCheckpoint(
             self.filepath, monitor='val_accuracy', verbose=1, save_best_only=True, mode='max')
         checkpoint_loss = ModelCheckpoint(
-            self.filepath_loss, monitor='val_loss', verbose=1, save_best_only=True, mode='max')
-        ranges = [0, 1000, 2000, 3000]
+            self.filepath_loss, monitor='val_loss', verbose=1, save_best_only=True, mode='min')
+        ranges = [0,1000,2000,3000]
         for r in ranges:
             # 4160
             print("Training range : ", r)
@@ -237,10 +238,10 @@ class BN_NET:
             self.load_weights(weights_file)
             print(f"{weights_file}")
             scores = self.model.evaluate(test_X, test_Y, verbose=1)
-            for i, metric in enumerate(self.model.metrics_names[1]):
+            for i, metric in enumerate(self.model.metrics_names):
                 print("%s: %.2f%%" % (metric, scores[i]*100))
 
-    def predict(self, predict_X, predict_Y, plot=True):
+    def predict(self, predict_X, predict_Y, plot=True, file_list = []):
         result = []
 
         out = self.model.predict(predict_X)
@@ -252,13 +253,13 @@ class BN_NET:
             truth = np.reshape(predict_Y[idx], (544, 544))
             if(plot):
                 pyplot.imshow(img, cmap='pink')
-                pyplot.title('Raster elevation')
+                pyplot.title(f'Raster elevation \n {file_list[idx]}')
                 pyplot.show()
                 pyplot.imshow(truth, cmap='pink')
                 pyplot.title('Truth elevation')
                 pyplot.show()
                 pyplot.imshow(classes, cmap='pink')
-                pyplot.title('Predited elevation')
+                pyplot.title(f'Predited elevation, {file_list[idx]}')
                 pyplot.show()
             result.append(classes)
 
@@ -269,10 +270,11 @@ def plot_predictions():
     bn_net_model = BN_NET()
     bn_net_model.load_weights(WEIGHT_FILE)
 
-    file_list = glob.glob("./data/train_val/test/*_mask.tif")
-    test_X = np.empty((30, 544, 544, 1))
-    test_Y = np.empty((30, 544, 544, 1))
-    for idx, file in enumerate(file_list[0:30]):
+    file_list = glob.glob("./data/*_mask.tif")
+    test_X = np.empty((50, 544, 544, 1))
+    test_Y = np.empty((50, 544, 544, 1))
+
+    for idx, file in enumerate(file_list[0:50]):
         rgb = rasterio.open(file.replace("mask", "elevation"))
         input_data = rgb.read([1])
 
@@ -286,7 +288,8 @@ def plot_predictions():
 
         test_X[idx] = input_data
         test_Y[idx] = np.reshape(out_data, (544, 544, 1))
-    bn_net_model.predict(test_X, test_Y)
+
+    bn_net_model.predict(test_X, test_Y,file_list=file_list)
 
 
 def train_model():
@@ -304,9 +307,9 @@ def evaluate_model_weights():
 
 
 def main():
-    train_model()
+    # train_model()
     # evaluate_model_weights()
-    # plot_predictions()
+    plot_predictions()
 
 
 if __name__ == '__main__':

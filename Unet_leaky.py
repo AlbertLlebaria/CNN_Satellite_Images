@@ -12,7 +12,11 @@ import os
 from keras.callbacks import ModelCheckpoint, TensorBoard
 from keras.preprocessing.image import ImageDataGenerator
 import math
+import matplotlib.pyplot as plt
+from keras.callbacks import Callback
+from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
 from datetime import datetime
+
 
 np.seterr(divide='ignore', invalid='ignore')
 
@@ -20,8 +24,8 @@ MODEL_DIR = './model'
 DATA_DIR = './data'
 TRAIN_DIR = 'train_val/train'
 VAL_DIR = 'train_val/validation'
-CHECK_POINT_PATH = "train_ckpt/relu"
-WEIGHT_FILE = "./train_ckpt/relu/weights-improvement-01-0.937.hdf5"
+CHECK_POINT_PATH = "train_ckpt/bn"
+WEIGHT_FILE = "train_ckpt/"
 DRORATE = 0.25
 LEARNING_RATE = 2*math.pow(10, -4)
 
@@ -37,9 +41,8 @@ class BN_NET:
         self.model = self.create_model()
         now = datetime.now()
         dt_string = now.strftime("%d/%m/%Y %H:%M:%S")
-
-        self.filepath = "./train_ckpt/relu/weights-improvement-{epoch:02d}-{val_accuracy:.3f}.hdf5"
-        self.filepath_loss = "./train_ckpt/relu/weights-improvement-loss-{epoch:02d}-{val_loss:.3f}.hdf5"
+        self.filepath = "./train_ckpt/bn/weights-improvement-{epoch:02d}-{val_accuracy:.3f}.hdf5"
+        self.filepath_loss = "./train_ckpt/bn/weights-improvement-lss-{epoch:02d}-{val_loss:.3f}.hdf5"
 
     def create_model(self):
         inputs = Input(shape=self.input_shape)
@@ -73,66 +76,47 @@ class BN_NET:
 
     def downBlock(self, input, filters):
         conv_1 = Conv2D(filters=filters,
-
                         kernel_size=(3, 3),
                         padding="same",
-                        activation='relu',
                         data_format='channels_last')(input)
-        bn_1 = BatchNormalization(axis=-1, momentum=0.99,
-                                  epsilon=0.001, center=True, scale=True,
-                                  beta_initializer='zeros', gamma_initializer='ones',
-                                  moving_mean_initializer='zeros', moving_variance_initializer='ones',
-                                  beta_regularizer=None, gamma_regularizer=None,
-                                  beta_constraint=None, gamma_constraint=None)(conv_1)
+        leaky_1 = LeakyReLU(alpha=0.1)(conv_1)
         conv_2 = Conv2D(filters=filters*2,
                         kernel_size=(3, 3),
                         padding="same",
-                        activation='relu',
-                        data_format='channels_last')(bn_1)
-        drop = Dropout(DRORATE)(conv_2)  # 3
-        bn_2 = BatchNormalization(axis=-1, momentum=0.99,
-                                  epsilon=0.001, center=True, scale=True,
-                                  beta_initializer='zeros', gamma_initializer='ones',
-                                  moving_mean_initializer='zeros', moving_variance_initializer='ones',
-                                  beta_regularizer=None, gamma_regularizer=None,
-                                  beta_constraint=None, gamma_constraint=None)(drop)
-        return MaxPooling2D(pool_size=2)(bn_2), drop
+                        data_format='channels_last')(leaky_1)
+        leaky_2 = LeakyReLU(alpha=0.1)(conv_2)
+        drop = Dropout(DRORATE)(leaky_2)  # 3
+        return MaxPooling2D(pool_size=2)(drop), drop
 
     def central_block(self, input, filters):
         # The central conv-block is a 3 × 3 convolutional layer with 384 kernels followed by a LeakyReLU activation function and BN layer.
         conv_1 = Conv2D(filters=filters,
                         kernel_size=(3, 3),
                         padding="same",
-                        activation='relu',
                         data_format='channels_last')(input)
-        return BatchNormalization(axis=-1, momentum=0.99,
-                                  epsilon=0.001, center=True, scale=True,
-                                  beta_initializer='zeros', gamma_initializer='ones',
-                                  moving_mean_initializer='zeros', moving_variance_initializer='ones',
-                                  beta_regularizer=None, gamma_regularizer=None,
-                                  beta_constraint=None, gamma_constraint=None)(conv_1)
+        leaky_1 = LeakyReLU(alpha=0.1)(conv_1)
+        return leaky_1
 
     def up_block(self, input, connection, filters):
         conv_1 = Conv2D(filters=filters,
                         kernel_size=(1, 1),
                         padding="same",
-                        activation='relu',
                         data_format='channels_last')(input)
-        up = UpSampling2D(size=2, interpolation="bilinear")(conv_1)
+        leaky_1 = LeakyReLU(alpha=0.1)(conv_1)
+        up = UpSampling2D(size=2, interpolation="bilinear")(leaky_1)
         con = Concatenate()([up, connection])
 
         conv_2 = Conv2D(filters=filters,
                         kernel_size=(3, 3),
-                        activation='relu',
                         padding="same")(con)
-        drop = Dropout(DRORATE)(conv_2)  # 3
-        bn_2 = BatchNormalization(axis=-1)(drop)
+        leaky_2 = LeakyReLU(alpha=0.1)(conv_2)
+        drop = Dropout(DRORATE)(leaky_2)  # 3
         conv_2 = Conv2D(filters=filters,
                         kernel_size=(3, 3),
                         padding="same",
-                        activation='relu',
-                        data_format='channels_last')(bn_2)
-        return BatchNormalization(axis=-1)(conv_2)
+                        data_format='channels_last')(drop)
+        leaky_3 = LeakyReLU(alpha=0.1)(conv_2)
+        return BatchNormalization(axis=-1)(leaky_3)
 
     def train(self):
 
@@ -161,7 +145,7 @@ class BN_NET:
             self.filepath, monitor='val_accuracy', verbose=1, save_best_only=True, mode='max')
         checkpoint_loss = ModelCheckpoint(
             self.filepath_loss, monitor='val_loss', verbose=1, save_best_only=True, mode='min')
-        ranges = [0, 1000, 2000, 3000]
+        ranges = [0,1000,2000,3000]
         for r in ranges:
             # 4160
             print("Training range : ", r)
@@ -191,11 +175,14 @@ class BN_NET:
             # data augmentation
             # datagen = ImageDataGenerator(rotation_range=90)
             # # prepare iterator
-            # it = datagen.flow(train_X, train_Y, batch_size=20)
+            # it = datagen.flow(train_X, train_Y, batch_size=1)
             tensorboard_callback = TensorBoard(
                 log_dir="./logs")
-            self.model.fit(train_X, train_Y, callbacks=[checkpoint, checkpoint_loss, tensorboard_callback], batch_size=1,
-                           epochs=5, validation_data=(val_X, val_Y))
+            training_history = self.model.fit(train_X, train_Y, callbacks=[checkpoint, checkpoint_loss, tensorboard_callback], batch_size=1,
+                                              epochs=5, validation_data=(val_X, val_Y))
+            print("Average test loss: ", np.average(
+                training_history.history['loss']))
+
         # save model
         self.model.save(os.path.join(MODEL_DIR, "bn_net.h5"))
 
@@ -236,25 +223,25 @@ class BN_NET:
             for i, metric in enumerate(self.model.metrics_names):
                 print("%s: %.2f%%" % (metric, scores[i]*100))
 
-    def predict(self, predict_X, predict_Y, plot=True):
+    def predict(self, predict_X, predict_Y, plot=True, file_list = []):
         result = []
 
         out = self.model.predict(predict_X)
         for idx, prediction in enumerate(out):
-            classes = np.where(prediction <= 0.50, 0, 255)
+            classes = np.where(prediction < 0.51, 0, 255)
 
             classes = np.reshape(classes, (544, 544))
             img = np.reshape(predict_X[idx], (544, 544))
             truth = np.reshape(predict_Y[idx], (544, 544))
             if(plot):
-                pyplot.imshow(img*255, cmap='pink')
-                pyplot.title('Raster elevation')
+                pyplot.imshow(img, cmap='pink')
+                pyplot.title(f'Raster elevation \n {file_list[idx]}')
                 pyplot.show()
                 pyplot.imshow(truth, cmap='pink')
                 pyplot.title('Truth elevation')
                 pyplot.show()
                 pyplot.imshow(classes, cmap='pink')
-                pyplot.title('Predited elevation')
+                pyplot.title(f'Predited elevation, {file_list[idx]}')
                 pyplot.show()
             result.append(classes)
 
@@ -266,9 +253,10 @@ def plot_predictions():
     bn_net_model.load_weights(WEIGHT_FILE)
 
     file_list = glob.glob("./data/train_val/test/*_mask.tif")
-    test_X = np.empty((30, 544, 544, 1))
-    test_Y = np.empty((30, 544, 544, 1))
-    for idx, file in enumerate(file_list[0:30]):
+    test_X = np.empty((50, 544, 544, 1))
+    test_Y = np.empty((50, 544, 544, 1))
+
+    for idx, file in enumerate(file_list[0:50]):
         rgb = rasterio.open(file.replace("mask", "elevation"))
         input_data = rgb.read([1])
 
@@ -282,7 +270,8 @@ def plot_predictions():
 
         test_X[idx] = input_data
         test_Y[idx] = np.reshape(out_data, (544, 544, 1))
-    bn_net_model.predict(test_X, test_Y)
+
+    bn_net_model.predict(test_X, test_Y,file_list=file_list)
 
 
 def train_model():
@@ -300,9 +289,9 @@ def evaluate_model_weights():
 
 
 def main():
-    # train_model()
-    # evaluate_model_weights()
-    plot_predictions()
+    train_model()
+    evaluate_model_weights()
+    # plot_predictions()
 
 
 if __name__ == '__main__':
