@@ -12,7 +12,7 @@ import os
 from keras.callbacks import ModelCheckpoint, TensorBoard
 from keras.preprocessing.image import ImageDataGenerator
 import math
- from keras.callbacks import Callback
+from keras.callbacks import Callback
 from sklearn.metrics import confusion_matrix, f1_score, precision_score, recall_score
 from datetime import datetime
 
@@ -188,11 +188,7 @@ class BN_NET:
                 train_X[idx] = input_data
                 train_Y[idx] = np.reshape(out_data, (544, 544, 1))
 
-                # create image data augmentation generator
-            # data augmentation
-            # datagen = ImageDataGenerator(rotation_range=90)
-            # # prepare iterator
-            # it = datagen.flow(train_X, train_Y, batch_size=1)
+
             tensorboard_callback = TensorBoard(
                 log_dir="./logs")
             training_history = self.model.fit(train_X, train_Y, callbacks=[checkpoint, checkpoint_loss, tensorboard_callback], batch_size=1,

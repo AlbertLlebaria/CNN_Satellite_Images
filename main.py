@@ -1,6 +1,5 @@
 from BN_Net import BN_NET
 from BN_Net_leaky import BN_NET as BN_Net_leaky
-
 from boundary_box_generator import BoundaryBoxProcessor
 from elevation_processor import ElevationProcessor
 from skimage.measure import label, regionprops
@@ -12,27 +11,32 @@ import glob
 import pandas as pd
 import geopandas as gpd
 from pathlib import Path
+import sys, getopt
 
 
 WEIGHT_FILE = "train_ckpt/leaky/weights-improvement-03-0.919.hdf5"
 OUT_FILE_SHP = 'prediction_{}.shp'
-OUT_DIR = './predicted'
+OUT_DIR = './predicted2'
 OUT_FILE_RASTER = 'prediction_{}.tif'
     
 
 def main():
-    bn_net_model = BN_Net_leaky()
+    if(sys.argv[0]=='relu'):
+        bn_net_model = BN_NET()
+    else:
+        bn_net_model = BN_Net_leaky()
+
     bn_net_model.load_weights(WEIGHT_FILE)
     bbox_gen = BoundaryBoxProcessor()
     elevation_proc = ElevationProcessor()
-    ranges = [0,1000,2000,3000]
+    ranges = [0]
 
-    file_list = glob.glob("data/train_val/train/*_mask.tif")
-    test_X = np.empty((1000, 544, 544, 1))
-    test_Y = np.empty((1000, 544, 544, 1))
+    file_list = glob.glob("data/tmp/*_mask.tif")
+    test_X = np.empty((5, 544, 544, 1))
+    test_Y = np.empty((5, 544, 544, 1))
     for r in ranges:
         rasters = []
-        for idx, file in enumerate(file_list[r:r+1000]):
+        for idx, file in enumerate(file_list[r:r+5]):
             elevation = rasterio.open(file.replace("mask", "elevation"))
             input_data = elevation.read([1])
 
@@ -62,4 +66,5 @@ def main():
         gdf.to_file(os.path.join(OUT_DIR,f'merged_{r}.shp'))
 
 if __name__ == '__main__':
-    main()
+    if(len(sys.argv) > 0 ):
+        main()

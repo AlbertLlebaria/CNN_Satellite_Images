@@ -21,7 +21,7 @@ DATA_DIR = './data'
 TRAIN_DIR = 'train_val/train'
 VAL_DIR = 'train_val/validation'
 CHECK_POINT_PATH = "train_ckpt/relu"
-WEIGHT_FILE = "./train_ckpt/relu/weights-improvement-01-0.937.hdf5"
+WEIGHT_FILE = "train_ckpt/relu/weights-improvement-01-0.937.hdf5"
 DRORATE = 0.25
 LEARNING_RATE = 2*math.pow(10, -4)
 
