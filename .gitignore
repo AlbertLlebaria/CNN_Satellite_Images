@@ -3,7 +3,6 @@ data/**
 predicted
 tmp
 logs/**
-train_ckpt/**
 
 **.tif
 # Byte-compiled / optimized / DLL files

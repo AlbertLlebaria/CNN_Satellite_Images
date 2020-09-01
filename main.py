@@ -16,9 +16,9 @@ import sys, getopt
 
 WEIGHT_FILE = "train_ckpt/leaky/weights-improvement-03-0.919.hdf5"
 OUT_FILE_SHP = 'prediction_{}.shp'
-OUT_DIR = './predicted2'
+OUT_DIR = './predicted'
 OUT_FILE_RASTER = 'prediction_{}.tif'
-    
+IN_DIR="data/train_val/train/*_mask.tif" 
 
 def main():
     if(sys.argv[0]=='relu'):
@@ -29,14 +29,14 @@ def main():
     bn_net_model.load_weights(WEIGHT_FILE)
     bbox_gen = BoundaryBoxProcessor()
     elevation_proc = ElevationProcessor()
-    ranges = [0]
+    ranges = [0,1000,2000,3000]
 
-    file_list = glob.glob("data/tmp/*_mask.tif")
-    test_X = np.empty((5, 544, 544, 1))
-    test_Y = np.empty((5, 544, 544, 1))
+    file_list = glob.glob(IN_DIR)
+    test_X = np.empty((1000, 544, 544, 1))
+    test_Y = np.empty((1000, 544, 544, 1))
     for r in ranges:
         rasters = []
-        for idx, file in enumerate(file_list[r:r+5]):
+        for idx, file in enumerate(file_list[r:r+1000]):
             elevation = rasterio.open(file.replace("mask", "elevation"))
             input_data = elevation.read([1])
 
