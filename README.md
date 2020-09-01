@@ -69,6 +69,12 @@ In order to use the evalue the model run: `python U_Net.py evaluate`. Make sure 
 Developed models allow the plotting of their predicted values for a visual evaluaion of those. To plot the predicted values, make sure weights are stored in the weight directory and the test set contains the tiles to predict. Run `python U_Net.py evaluate`, for instance to evalute the results of the U_net model.
 
 
+
+### Result
+
+Result images are stored in the results folder. Test contained FP, FN, TP, TN plots of the predictions in a different set of tiles. Then results/predicted containt the predicted green roof areas with.
+
+
 ### Green roof potential areas extraction
 
 Main.py containg the main script to execute the whole sequential model. The sequential model uses a U_net_leakyRelu model for roof segmentation and Gdal functionalities to evaluate the predicted segments. To run the script make sure data is available in the IN_DIR constant variable and weights to load too WEIGHT_FILE. Finally run `python main.py ` for leakyrelu model or  `python main.py relu` for U_net_relu model.
